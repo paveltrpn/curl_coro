@@ -3,64 +3,118 @@
 #include "async.h"
 #include <print>
 
-WebClient::WebClient() {
+std::string curlBuffer;
+
+[[maybe_unused]] static size_t curlWriteFunc( char* data, size_t size,
+                                              size_t nmemb,
+                                              std::string* buffer )
+
+{
+    size_t result{};
+    if ( buffer != nullptr ) {
+        buffer->append( data, size * nmemb );
+        result = size * nmemb;
+    }
+    return result;
+}
+
+[[maybe_unused]] static size_t writeToBuffer( char* ptr, size_t, size_t nmemb,
+                                              void* tab ) {
+    auto r = reinterpret_cast<Request*>( tab );
+    r->buffer.append( ptr, nmemb );
+    return nmemb;
+}
+
+[[maybe_unused]] static size_t fillRequest( char* ptr, size_t, size_t nmemb,
+                                            Request* tab ) {
+    tab->buffer.append( ptr, nmemb );
+    return nmemb;
+}
+
+Poller::Poller() {
     multiHandle_ = curl_multi_init();
     if ( !multiHandle_ ) {
         std::println( "can't create curl multi handle" );
     }
 
-    worker_ = std::make_unique<std::thread>( &WebClient::run, this );
+    worker_ = std::make_unique<std::thread>( &Poller::run, this );
     worker_->detach();
 }
 
-WebClient::~WebClient() {
+Poller::~Poller() {
+    stop();
     curl_multi_cleanup( multiHandle_ );
 }
 
-void WebClient::performRequest( const std::string& url, CallbackFn cb ) {
+void Poller::performRequest( const std::string& url, CallbackFn cb ) {
     Request* requestPtr = new Request{ std::move( cb ), {} };
     CURL* handle = curl_easy_init();
     curl_easy_setopt( handle, CURLOPT_URL, url.c_str() );
     curl_easy_setopt( handle, CURLOPT_USERAGENT, "curl_coro/0.1" );
-    curl_easy_setopt( handle, CURLOPT_WRITEFUNCTION,
-                      &WebClient::writeToBuffer );
+    curl_easy_setopt( handle, CURLOPT_WRITEFUNCTION, &fillRequest );
     curl_easy_setopt( handle, CURLOPT_WRITEDATA, requestPtr );
     curl_easy_setopt( handle, CURLOPT_PRIVATE, requestPtr );
 
     // curl_easy_setopt( handle, CURLOPT_HEADER, 1 );
+    // POST parameters
+    // curl_easy_setopt(curl, CURLOPT_POST, 1);
+    // const char *urlPOST = "login=ИМЯ&password=ПАСС&cmd=login";
+    // curl_easy_setopt(curl, CURLOPT_POSTFIELDS, urlPOST);
 
     curl_multi_add_handle( multiHandle_, handle );
 }
 
-void WebClient::stop() {
+void Poller::stop() {
     break_ = true;
     curl_multi_wakeup( multiHandle_ );
 }
 
-void WebClient::run() {
+void Poller::run() {
     int msgs_left;
     int still_running = 1;
 
     while ( !break_ ) {
-        curl_multi_perform( multiHandle_, &still_running );
-        curl_multi_poll( multiHandle_, nullptr, 0, 1000, nullptr );
+        CURLMcode res{};
+
+        res = curl_multi_perform( multiHandle_, &still_running );
+
+        if ( res != CURLM_OK ) {
+            std::println( "curl_multi_perform failed, code {}",
+                          curl_multi_strerror( res ) );
+            break;
+        }
+
+        res = curl_multi_poll( multiHandle_, nullptr, 0, 1000, nullptr );
+
+        if ( res != CURLM_OK ) {
+            std::println( "curl_multi_poll failed, code {}",
+                          curl_multi_strerror( res ) );
+            break;
+        }
 
         CURLMsg* msg;
         do {
             msg = curl_multi_info_read( multiHandle_, &msgs_left );
             if ( msg && ( msg->msg == CURLMSG_DONE ) ) {
                 CURL* handle = msg->easy_handle;
-                CURLcode res;
+                CURLcode res{};
 
-                int code;
-                curl_easy_getinfo( handle, CURLINFO_RESPONSE_CODE, &code );
+                int code{};
+                res =
+                    curl_easy_getinfo( handle, CURLINFO_RESPONSE_CODE, &code );
+                if ( res != CURLE_OK ) {
+                    std::println( "curl_easy_getinfo failed, code {}\n",
+                                  curl_easy_strerror( res ) );
+                }
 
-                Request* requestPtr;
+                Request* requestPtr{};
                 res =
                     curl_easy_getinfo( handle, CURLINFO_PRIVATE, &requestPtr );
 
-                if ( res )
-                    std::println( "error: {}\n", curl_easy_strerror( res ) );
+                if ( res != CURLE_OK ) {
+                    std::println( "curl_easy_getinfo failed, code {}\n",
+                                  curl_easy_strerror( res ) );
+                }
 
                 requestPtr->callback(
                     { code, std::move( requestPtr->buffer ) } );
@@ -74,6 +128,6 @@ void WebClient::run() {
     std::println( "curl loop stopped!" );
 }
 
-RequestAwaitable WebClient::performRequestAsync( std::string url ) {
+RequestAwaitable Poller::performRequestAsync( std::string url ) {
     return RequestAwaitable( *this, std::move( url ) );
 }

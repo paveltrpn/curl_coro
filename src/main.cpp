@@ -4,15 +4,26 @@
 #include "web_client.h"
 #include "async.h"
 
-TaskVoid requestAsync( WebClient& client, std::string rqst ) {
+Task<void> requestAsync( Poller& client, std::string rqst ) {
     auto resp = co_await client.performRequestAsync( rqst );
     std::cout << rqst << " ready: " << resp.code << " - " << resp.data
               << std::endl;
 }
 
-/*
-void requestNoCoro() {
+int main( int argc, char** argv ) {
+    Poller client;
+
+    std::println( "request postman-echo.com" );
+    requestAsync( client, "https://postman-echo.com/get" );
+
     std::println( "request httpbin.org" );
+    requestAsync( client, "http://httpbin.org/user-agent" );
+
+    std::println( "request www.gstatic.com" );
+    requestAsync( client, "http://www.gstatic.com/generate_204" );
+
+    requestAsync( client, "https://api.coindesk.com/v1/bpi/currentprice.json" );
+
     client.performRequest( "http://httpbin.org/ip", []( Result res ) {
         std::cout << "Req2 Code: " << res.code << std::endl;
         std::cout << "Req2 Data: '" << res.data << "'" << std::endl
@@ -40,25 +51,8 @@ void requestNoCoro() {
                               << std::endl;
                 } );
         } );
-}
-*/
-
-int main( int argc, char** argv ) {
-    WebClient client;
-
-    std::println( "request postman-echo.com" );
-    requestAsync( client, "https://postman-echo.com/get" );
-
-    std::println( "request httpbin.org" );
-    requestAsync( client, "http://httpbin.org/user-agent" );
-
-    std::println( "request www.gstatic.com" );
-    requestAsync( client, "http://www.gstatic.com/generate_204" );
-
-    requestAsync( client, "https://api.coindesk.com/v1/bpi/currentprice.json" );
 
     std::cin.get();
-    client.stop();
 
     return 0;
 }

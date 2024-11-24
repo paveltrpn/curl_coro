@@ -21,24 +21,22 @@ struct Request {
 
 struct RequestAwaitable;
 
-class WebClient {
+class Poller {
 public:
-    WebClient();
-    ~WebClient();
+    Poller();
+    ~Poller();
+
+    Poller( const Poller& other ) = delete;
+    Poller( Poller&& other ) = delete;
+    Poller& operator=( const Poller& other ) = delete;
+    Poller& operator=( Poller&& other ) = delete;
 
     void stop();
     void performRequest( const std::string& url, CallbackFn cb );
-
     RequestAwaitable performRequestAsync( std::string url );
 
 private:
     void run();
-
-    static size_t writeToBuffer( char* ptr, size_t, size_t nmemb, void* tab ) {
-        auto r = reinterpret_cast<Request*>( tab );
-        r->buffer.append( ptr, nmemb );
-        return nmemb;
-    }
 
 private:
     std::unique_ptr<std::thread> worker_;
