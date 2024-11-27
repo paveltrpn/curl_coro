@@ -22,5 +22,7 @@ add_executable(curl_coro
     src/web_client.h
     src/web_client.cpp
     src/async.h
+    src/handle.cpp
+    src/handle.h
 )
 target_link_libraries(curl_coro -lcurl )

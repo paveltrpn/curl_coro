@@ -1,6 +1,8 @@
 
 #include "web_client.h"
 #include "async.h"
+#include "handle.h"
+
 #include <print>
 
 std::string curlBuffer;
@@ -48,20 +50,22 @@ Poller::~Poller() {
 
 void Poller::performRequest( const std::string& url, CallbackFn cb ) {
     Request* requestPtr = new Request{ std::move( cb ), {} };
-    CURL* handle = curl_easy_init();
-    curl_easy_setopt( handle, CURLOPT_URL, url.c_str() );
-    curl_easy_setopt( handle, CURLOPT_USERAGENT, "curl_coro/0.1" );
-    curl_easy_setopt( handle, CURLOPT_WRITEFUNCTION, &fillRequest );
-    curl_easy_setopt( handle, CURLOPT_WRITEDATA, requestPtr );
-    curl_easy_setopt( handle, CURLOPT_PRIVATE, requestPtr );
+    // CURL* handle = curl_easy_init();
+    poller::Handle handle;
+    handle.setopt<CURLOPT_URL>( url );
+    handle.setopt<CURLOPT_USERAGENT>( "curl_coro/0.1" );
+    handle.setopt<CURLOPT_WRITEFUNCTION>( fillRequest );
+    handle.setopt<CURLOPT_WRITEDATA>( requestPtr );
+    handle.setopt<CURLOPT_PRIVATE>( requestPtr );
 
-    // curl_easy_setopt( handle, CURLOPT_HEADER, 1 );
+    handle.setopt<CURLOPT_HEADER>( 1 );
+
     // POST parameters
     // curl_easy_setopt(curl, CURLOPT_POST, 1);
     // const char *urlPOST = "login=ИМЯ&password=ПАСС&cmd=login";
     // curl_easy_setopt(curl, CURLOPT_POSTFIELDS, urlPOST);
 
-    curl_multi_add_handle( multiHandle_, handle );
+    curl_multi_add_handle( multiHandle_, handle.get() );
 }
 
 void Poller::stop() {
