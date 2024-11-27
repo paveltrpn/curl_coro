@@ -7,7 +7,7 @@
 
 std::string curlBuffer;
 
-[[maybe_unused]] static size_t curlWriteFunc( char* data, size_t size,
+[[maybe_unused]] static size_t writeToBuffer( char* data, size_t size,
                                               size_t nmemb,
                                               std::string* buffer )
 
@@ -20,8 +20,8 @@ std::string curlBuffer;
     return result;
 }
 
-[[maybe_unused]] static size_t writeToBuffer( char* ptr, size_t, size_t nmemb,
-                                              void* tab ) {
+[[maybe_unused]] static size_t writeToRequest( char* ptr, size_t, size_t nmemb,
+                                               void* tab ) {
     auto r = reinterpret_cast<Request*>( tab );
     r->buffer.append( ptr, nmemb );
     return nmemb;
@@ -50,14 +50,12 @@ Poller::~Poller() {
 
 void Poller::performRequest( const std::string& url, CallbackFn cb ) {
     Request* requestPtr = new Request{ std::move( cb ), {} };
-    // CURL* handle = curl_easy_init();
     poller::Handle handle;
     handle.setopt<CURLOPT_URL>( url );
     handle.setopt<CURLOPT_USERAGENT>( "curl_coro/0.1" );
-    handle.setopt<CURLOPT_WRITEFUNCTION>( fillRequest );
+    handle.setopt<CURLOPT_WRITEFUNCTION>( writeToRequest );
     handle.setopt<CURLOPT_WRITEDATA>( requestPtr );
     handle.setopt<CURLOPT_PRIVATE>( requestPtr );
-
     handle.setopt<CURLOPT_HEADER>( 1 );
 
     // POST parameters
@@ -65,7 +63,7 @@ void Poller::performRequest( const std::string& url, CallbackFn cb ) {
     // const char *urlPOST = "login=ИМЯ&password=ПАСС&cmd=login";
     // curl_easy_setopt(curl, CURLOPT_POSTFIELDS, urlPOST);
 
-    curl_multi_add_handle( multiHandle_, handle.get() );
+    curl_multi_add_handle( multiHandle_, handle );
 }
 
 void Poller::stop() {

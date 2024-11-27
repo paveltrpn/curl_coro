@@ -7,6 +7,9 @@
 
 namespace poller {
 
+template <typename F>
+concept CurlWriteFunctionType = std::invocable<F, char*, size_t, size_t, void*>;
+
 template <CURLoption Opt>
 concept CurlOptCallable = ( Opt == CURLOPT_WRITEFUNCTION );
 
@@ -32,8 +35,9 @@ struct Handle final {
     Handle& operator=( Handle&& other ) = delete;
 
     // TODO: T - bad option, must be invokable
-    template <CURLoption Opt, typename T>
-    requires CurlOptCallable<Opt> void setopt( T value ) {
+    template <CURLoption Opt>
+    requires CurlOptCallable<Opt> void setopt(
+        CurlWriteFunctionType auto value ) {
         curl_easy_setopt( handle_, Opt, value );
     };
 
@@ -47,18 +51,16 @@ struct Handle final {
         curl_easy_setopt( handle_, Opt, value );
     };
 
+    // TODO: T - bad option, must be some POD pointer concept
     template <CURLoption Opt, typename T>
     requires CurlOptObject<Opt> void setopt( T value ) {
         curl_easy_setopt( handle_, Opt, value );
     };
 
-    void setopt( CURLoption opt, void* value ) {
-        curl_easy_setopt( handle_, opt, value );
-    };
-
-    CURL* get() { return handle_; };
+    operator CURL*() { return handle_; };
 
 private:
+    // CURL itself must be deal with that handle, do nothing in destructor
     CURL* handle_;
 };
 
