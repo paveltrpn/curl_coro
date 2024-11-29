@@ -25,6 +25,8 @@ add_library(poller
     poller/async.h
     poller/handle.cpp
     poller/handle.h
+    poller/request.cpp
+    poller/request.h
 )
 
 add_subdirectory(test/callback)
