@@ -7,6 +7,8 @@
 #include <thread>
 #include <curl/curl.h>
 
+namespace poller {
+
 struct Result {
     int code;
     std::string data;
@@ -44,3 +46,5 @@ private:
     CURLM* multiHandle_;
     std::atomic_bool break_{ false };
 };
+
+}

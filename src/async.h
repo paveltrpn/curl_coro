@@ -3,7 +3,9 @@
 
 #include <coroutine>
 
-#include "web_client.h"
+#include "poller.h"
+
+namespace poller {
 
 template <typename T>
 struct Task;
@@ -70,3 +72,5 @@ struct RequestAwaitable {
     std::string url;
     Result result;
 };
+
+}  // namespace poller

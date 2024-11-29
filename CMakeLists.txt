@@ -19,8 +19,8 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS true)
 
 add_executable(curl_coro
     src/main.cpp
-    src/web_client.h
-    src/web_client.cpp
+    src/poller.h
+    src/poller.cpp
     src/async.h
     src/handle.cpp
     src/handle.h

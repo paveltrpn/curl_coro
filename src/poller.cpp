@@ -1,11 +1,11 @@
 
-#include "web_client.h"
+#include "poller.h"
 #include "async.h"
 #include "handle.h"
 
 #include <print>
 
-std::string curlBuffer;
+namespace poller {
 
 [[maybe_unused]] static size_t writeToBuffer( char* data, size_t size,
                                               size_t nmemb,
@@ -149,3 +149,5 @@ void Poller::run() {
 RequestAwaitable Poller::performRequestAsync( std::string url ) {
     return RequestAwaitable( *this, std::move( url ) );
 }
+
+}  // namespace poller
