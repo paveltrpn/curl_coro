@@ -10,8 +10,12 @@ namespace poller {
 template <typename F>
 concept CurlWriteFunctionType = std::invocable<F, char*, size_t, size_t, void*>;
 
+template <typename T>
+concept CurlObjectType = std::is_class_v<std::remove_pointer_t<T>>;
+
 template <CURLoption Opt>
-concept CurlOptCallable = ( Opt == CURLOPT_WRITEFUNCTION );
+concept CurlOptCallable = ( Opt == CURLOPT_WRITEFUNCTION ) ||
+                          ( Opt == CURLOPT_READFUNCTION );
 
 template <CURLoption Opt>
 concept CurlOptObject = ( Opt == CURLOPT_WRITEDATA ) ||
@@ -20,10 +24,36 @@ concept CurlOptObject = ( Opt == CURLOPT_WRITEDATA ) ||
 template <CURLoption Opt>
 concept CurlOptString = ( Opt == CURLOPT_URL ) ||
                         ( Opt == CURLOPT_USERAGENT ) ||
-                        ( Opt == CURLOPT_POSTFIELDS );
+                        ( Opt == CURLOPT_POSTFIELDS ) ||
+                        ( Opt == CURLOPT_COPYPOSTFIELDS ) ||
+                        ( Opt == CURLOPT_USERPWD ) ||
+                        ( Opt == CURLOPT_HEADERDATA );
 
 template <CURLoption Opt>
-concept CurlOptLong = ( Opt == CURLOPT_HEADER ) || ( Opt == CURLOPT_POST );
+concept CurlOptLong = ( Opt == CURLOPT_HEADER ) ||
+                      ( Opt == CURLOPT_POST ) ||  // HTTP POST
+                      ( Opt == CURLOPT_NOPROGRESS ) ||
+                      ( Opt == CURLOPT_MAXREDIRS ) ||
+                      ( Opt == CURLOPT_TCP_KEEPALIVE ) ||
+                      ( Opt == CURLOPT_HTTP_VERSION ) ||
+                      ( Opt == CURLOPT_HTTPGET ) ||   // HTTP GET
+                      ( Opt == CURLOPT_HTTPPOST ) ||  // HTTP POST, deprecated
+                      ( Opt == CURLOPT_MIMEPOST ) ||  // HTTP POST, use instead
+                      ( Opt == CURLOPT_PUT ) ||       // HTTP PUT, deprecated
+                      ( Opt == CURLOPT_UPLOAD ) ||    // HTTP PUT, use instead
+                      ( Opt == CURLOPT_MIME_OPTIONS );
+
+template <CURLoption Opt>
+concept CurlOptSList = ( Opt == CURLOPT_HTTPHEADER ) ||
+                       ( Opt == CURLOPT_POSTQUOTE ) ||
+                       ( Opt == CURLOPT_TELNETOPTIONS ) ||
+                       ( Opt == CURLOPT_PREQUOTE ) ||
+                       ( Opt == CURLOPT_HTTP200ALIASES ) ||
+                       ( Opt == CURLOPT_MAIL_RCPT ) ||
+                       ( Opt == CURLOPT_RESOLVE ) ||
+                       ( Opt == CURLOPT_PROXYHEADER ) ||
+                       ( Opt == CURLOPT_CONNECT_TO ) ||
+                       ( Opt == CURLOPT_QUOTE );
 
 struct Handle final {
     Handle();
@@ -34,7 +64,6 @@ struct Handle final {
     Handle& operator=( const Handle& other ) = delete;
     Handle& operator=( Handle&& other ) = delete;
 
-    // TODO: T - bad option, must be invokable
     template <CURLoption Opt>
     requires CurlOptCallable<Opt> void setopt(
         CurlWriteFunctionType auto value ) {
@@ -47,13 +76,17 @@ struct Handle final {
     };
 
     template <CURLoption Opt>
-    requires CurlOptLong<Opt> void setopt( long value ) {
+    requires CurlOptLong<Opt> void setopt( std::integral auto value ) {
         curl_easy_setopt( handle_, Opt, value );
     };
 
-    // TODO: T - bad option, must be some POD pointer concept
-    template <CURLoption Opt, typename T>
-    requires CurlOptObject<Opt> void setopt( T value ) {
+    template <CURLoption Opt>
+    requires CurlOptObject<Opt> void setopt( CurlObjectType auto value ) {
+        curl_easy_setopt( handle_, Opt, value );
+    };
+
+    template <CURLoption Opt>
+    requires CurlOptSList<Opt> void setopt( curl_slist* value ) {
         curl_easy_setopt( handle_, Opt, value );
     };
 

@@ -9,9 +9,7 @@ std::string curlBuffer;
 
 [[maybe_unused]] static size_t writeToBuffer( char* data, size_t size,
                                               size_t nmemb,
-                                              std::string* buffer )
-
-{
+                                              std::string* buffer ) {
     size_t result{};
     if ( buffer != nullptr ) {
         buffer->append( data, size * nmemb );
@@ -34,9 +32,18 @@ std::string curlBuffer;
 }
 
 Poller::Poller() {
+    CURLcode res{};
+    res = curl_global_init( CURL_GLOBAL_DEFAULT );
+    if ( res != CURLE_OK ) {
+        std::println( "curl_global_init failed, code {}\n",
+                      curl_easy_strerror( res ) );
+        throw std::runtime_error( "curl_global_init failed" );
+    }
+
     multiHandle_ = curl_multi_init();
     if ( !multiHandle_ ) {
         std::println( "can't create curl multi handle" );
+        throw std::runtime_error( "curl_multi_init failed" );
     }
 
     worker_ = std::make_unique<std::thread>( &Poller::run, this );
@@ -46,6 +53,7 @@ Poller::Poller() {
 Poller::~Poller() {
     stop();
     curl_multi_cleanup( multiHandle_ );
+    curl_global_cleanup();
 }
 
 void Poller::performRequest( const std::string& url, CallbackFn cb ) {
@@ -56,12 +64,20 @@ void Poller::performRequest( const std::string& url, CallbackFn cb ) {
     handle.setopt<CURLOPT_WRITEFUNCTION>( writeToRequest );
     handle.setopt<CURLOPT_WRITEDATA>( requestPtr );
     handle.setopt<CURLOPT_PRIVATE>( requestPtr );
-    handle.setopt<CURLOPT_HEADER>( 1 );
+    handle.setopt<CURLOPT_HEADER>( 1l );
 
     // POST parameters
     // curl_easy_setopt(curl, CURLOPT_POST, 1);
     // const char *urlPOST = "login=ИМЯ&password=ПАСС&cmd=login";
     // curl_easy_setopt(curl, CURLOPT_POSTFIELDS, urlPOST);
+
+    // GET
+    // curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 1L);
+    // curl_easy_setopt(curl, CURLOPT_USERPWD, "user:pass");
+    // curl_easy_setopt(curl, CURLOPT_USERAGENT, "curl/7.42.0");
+    // curl_easy_setopt(curl, CURLOPT_MAXREDIRS, 50L);
+    // curl_easy_setopt(curl, CURLOPT_TCP_KEEPALIVE, 1L);
+    // curl_easy_setopt(curl, CURLOPT_HEADERDATA, &header_string);
 
     curl_multi_add_handle( multiHandle_, handle );
 }
