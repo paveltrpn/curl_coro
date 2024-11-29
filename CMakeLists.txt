@@ -14,15 +14,21 @@ add_link_options(-stdlib=libc++)
 
 project (curl_coro)
 
+include_directories("poller")
+
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_EXPORT_COMPILE_COMMANDS true)
 
-add_executable(curl_coro
-    src/main.cpp
-    src/poller.h
-    src/poller.cpp
-    src/async.h
-    src/handle.cpp
-    src/handle.h
+add_library(poller
+    poller/poller.h
+    poller/poller.cpp
+    poller/async.h
+    poller/handle.cpp
+    poller/handle.h
 )
-target_link_libraries(curl_coro -lcurl )
+
+add_subdirectory(test/callback)
+target_link_libraries(callback poller curl)
+
+add_subdirectory(test/coro)
+target_link_libraries(coro poller curl)
