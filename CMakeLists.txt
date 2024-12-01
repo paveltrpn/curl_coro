@@ -34,3 +34,6 @@ target_link_libraries(callback poller curl)
 
 add_subdirectory(test/coro)
 target_link_libraries(coro poller curl)
+
+add_subdirectory(test/httpbin)
+target_link_libraries(httpbin poller curl)
