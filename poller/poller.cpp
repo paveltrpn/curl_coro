@@ -82,6 +82,28 @@ void Poller::performRequest( const std::string& url, CallbackFn cb ) {
     curl_multi_add_handle( multiHandle_, handle );
 }
 
+void Poller::performRequest( HttpRequest&& request, CallbackFn cb ) {
+    if ( request.isValid() ) {
+        Request* requestPtr = new Request{ std::move( cb ), {} };
+
+        request.handle().setopt<CURLOPT_WRITEFUNCTION>( writeToRequest );
+        request.handle().setopt<CURLOPT_WRITEDATA>( requestPtr );
+        request.handle().setopt<CURLOPT_PRIVATE>( requestPtr );
+
+        curl_multi_add_handle( multiHandle_, request );
+    } else {
+        std::println( "poller request not performed, request is invalid!" );
+    }
+}
+
+RequestAwaitable Poller::performRequestAsync( std::string url ) {
+    return RequestAwaitable( *this, std::move( url ) );
+}
+
+HttpRequestAwaitable Poller::performRequestAsync( HttpRequest&& request ) {
+    return HttpRequestAwaitable( *this, std::move( request ) );
+}
+
 void Poller::stop() {
     break_ = true;
     curl_multi_wakeup( multiHandle_ );
@@ -144,10 +166,6 @@ void Poller::run() {
     }
 
     std::println( "curl loop stopped!" );
-}
-
-RequestAwaitable Poller::performRequestAsync( std::string url ) {
-    return RequestAwaitable( *this, std::move( url ) );
 }
 
 }  // namespace poller

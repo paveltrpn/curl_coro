@@ -4,6 +4,7 @@
 #include <coroutine>
 
 #include "poller.h"
+#include "request.h"
 
 namespace poller {
 
@@ -71,6 +72,27 @@ struct RequestAwaitable {
     Poller& client;
     std::string url;
     Result result;
+};
+
+struct HttpRequestAwaitable {
+    HttpRequestAwaitable( Poller& client, HttpRequest request )
+        : client_( client )
+        , request_( std::move( request ) ){};
+
+    bool await_ready() const noexcept { return false; }
+    void await_suspend(
+        std::coroutine_handle<Task<void>::promise_type> handle ) noexcept {
+        client_.performRequest( std::move( request_ ),
+                                [handle, this]( Result res ) {
+                                    result_ = std::move( res );
+                                    handle.resume();
+                                } );
+    }
+    Result await_resume() const noexcept { return std::move( result_ ); }
+
+    Poller& client_;
+    HttpRequest request_;
+    Result result_;
 };
 
 }  // namespace poller

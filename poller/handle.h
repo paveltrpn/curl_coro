@@ -60,9 +60,10 @@ struct Handle final {
     ~Handle() = default;
 
     Handle( const Handle& other ) = delete;
-    Handle( Handle&& other ) = delete;
     Handle& operator=( const Handle& other ) = delete;
-    Handle& operator=( Handle&& other ) = delete;
+
+    Handle( Handle&& other );
+    Handle& operator=( Handle&& other );
 
     template <CURLoption Opt>
     requires CurlOptCallable<Opt> void setopt(
@@ -92,9 +93,11 @@ struct Handle final {
 
     operator CURL*() { return handle_; };
 
+    bool isValid() { return !( handle_ == nullptr ); };
+
 private:
     // CURL itself must be deal with that handle, do nothing in destructor
-    CURL* handle_;
+    CURL* handle_{ nullptr };
 };
 
 }  // namespace poller

@@ -7,6 +7,8 @@
 #include <thread>
 #include <curl/curl.h>
 
+#include "request.h"
+
 namespace poller {
 
 struct Result {
@@ -22,6 +24,7 @@ struct Request {
 };
 
 struct RequestAwaitable;
+struct HttpRequestAwaitable;
 
 class Poller {
 public:
@@ -34,8 +37,15 @@ public:
     Poller& operator=( Poller&& other ) = delete;
 
     void stop();
+
     void performRequest( const std::string& url, CallbackFn cb );
+    void performRequest( const HttpRequest& request, CallbackFn cb ) = delete;
+    void performRequest( HttpRequest&& request, CallbackFn cb );
+
     RequestAwaitable performRequestAsync( std::string url );
+    HttpRequestAwaitable performRequestAsync( const HttpRequest& request ) =
+        delete;
+    HttpRequestAwaitable performRequestAsync( HttpRequest&& request );
 
 private:
     void run();
@@ -47,4 +57,4 @@ private:
     std::atomic_bool break_{ false };
 };
 
-}
+}  // namespace poller
