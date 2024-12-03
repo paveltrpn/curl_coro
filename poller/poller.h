@@ -24,6 +24,7 @@ struct Request {
 };
 
 struct RequestAwaitable;
+
 struct HttpRequestAwaitable;
 
 class Poller {

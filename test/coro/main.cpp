@@ -11,24 +11,57 @@ poller::Task<void> requestAsync( poller::Poller& client, std::string rqst ) {
               << std::endl;
 }
 
-poller::Task<void> httpRequestAsync( poller::Poller& client,
-                                     poller::HttpRequest&& rqst ) {
+// poller::Task<void> httpRequestAsync( poller::Poller& client,
+// poller::HttpRequest&& rqst ) {
+// auto resp = co_await client.performRequestAsync( std::move( rqst ) );
+// std::cout << rqst << " ready: " << resp.code << " - " << resp.data
+// << std::endl;
+// }
+
+poller::Task<poller::Result> requestPromise( poller::Poller& client,
+                                             poller::HttpRequest&& rqst ) {
     auto resp = co_await client.performRequestAsync( std::move( rqst ) );
-    std::cout << rqst << " ready: " << resp.code << " - " << resp.data
-              << std::endl;
+    co_return resp;
 }
 
 int main( int argc, char** argv ) {
     poller::Poller client;
 
-    std::println( "request postman-echo.com" );
-
     auto req =
         poller::HttpRequest{ "https://postman-echo.com/get", "curl coro/0.2" };
 
-    httpRequestAsync( client, std::move( req ) );
-    httpRequestAsync( client, std::move( req ) );
+    // httpRequestAsync( client, std::move( req ) );
+    // httpRequestAsync( client, std::move( req ) );
 
+    // std::println( "request postman-echo.com" );
+
+    /*
+    auto respFirst = requestPromise(
+        client, { "https://postman-echo.com/get", "curl coro/0.2" } );
+    auto respSecnd = requestPromise(
+        client, { "https://postman-echo.com/get", "curl coro/0.2" } );
+
+    const auto [codeFirst, dataFisrt] = respFirst.get();
+    std::print( "code: {}\nbody: {}\n", codeFirst, dataFisrt );
+
+    const auto [codeSecnd, dataSecnd] = respSecnd.get();
+    std::print( "code: {}\nbody: {}\n", codeSecnd, dataSecnd );
+    */
+
+    std::vector<poller::Task<poller::Result>> resps;
+
+    for ( int i = 0; i < 10; ++i ) {
+        auto resp = requestPromise(
+            client, { "https://postman-echo.com/get", "curl coro/0.2" } );
+
+        resps.push_back( resp );
+        std::print( "resp {} performed\n", i );
+    }
+
+    for ( int i = 0; i < 10; ++i ) {
+        const auto [code, data] = resps[i].get();
+        std::print( "resp {}\ncode: {}\nbody: {}\n", i, code, data );
+    }
     // std::println( "request postman-echo.com" );
     // requestAsync( client, "https://postman-echo.com/get" );
 
