@@ -54,15 +54,18 @@ struct Task<void> {
     Task( const Task& ) = delete;
     Task& operator=( const Task& ) = delete;
 
-    // ~Task() {
-    // if ( handle_ ) handle_.destroy();
-    // }
+    ~Task() {
+        if ( handle_ ) handle_.destroy();
+    }
 
 private:
     handle_type handle_;
 };
 
 namespace __detail__ {
+// Global sync primitives, uses for suspend main thread when
+// call Task<Result>::get() if request not ready. Single
+// instance for all available coroutines.
 static std::condition_variable cv_;
 static std::mutex mtx_;
 }  // namespace __detail__

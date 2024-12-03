@@ -16,7 +16,7 @@ project (curl_coro)
 
 include_directories("poller")
 
-set(CMAKE_CXX_STANDARD 23)
+set(CMAKE_CXX_STANDARD 26)
 set(CMAKE_EXPORT_COMPILE_COMMANDS true)
 
 add_library(poller
