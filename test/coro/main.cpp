@@ -41,7 +41,7 @@ int main( int argc, char** argv ) {
         auto resp = requestPromise(
             client, { "https://postman-echo.com/get", "curl coro/0.2" } );
 
-        resps.push_back( resp );
+        resps.emplace_back( std::move( resp ) );
         std::print( "resp {} performed\n", i );
     }
 

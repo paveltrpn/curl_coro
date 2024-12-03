@@ -33,6 +33,27 @@ struct Task<void> {
     Task( handle_type h )
         : handle_( h ) {}
 
+    Task( Task&& t ) noexcept
+        : handle_( t.handle_ ) {
+        t.handle_ = nullptr;
+    }
+
+    Task& operator=( Task&& other ) noexcept {
+        if ( std::addressof( other ) != this ) {
+            if ( handle_ ) {
+                handle_.destroy();
+            }
+
+            handle_ = other.handle_;
+            other.handle_ = nullptr;
+        }
+
+        return *this;
+    }
+
+    Task( const Task& ) = delete;
+    Task& operator=( const Task& ) = delete;
+
     // ~Task() {
     // if ( handle_ ) handle_.destroy();
     // }
@@ -72,9 +93,30 @@ struct Task<Result> {
     Task( handle_type h )
         : handle_( h ) {}
 
-    // ~Task() {
-    // if ( handle_ ) handle_.destroy();
-    // }
+    Task( Task&& t ) noexcept
+        : handle_( t.handle_ ) {
+        t.handle_ = nullptr;
+    }
+
+    Task& operator=( Task&& other ) noexcept {
+        if ( std::addressof( other ) != this ) {
+            if ( handle_ ) {
+                handle_.destroy();
+            }
+
+            handle_ = other.handle_;
+            other.handle_ = nullptr;
+        }
+
+        return *this;
+    }
+
+    Task( const Task& ) = delete;
+    Task& operator=( const Task& ) = delete;
+
+    ~Task() {
+        if ( handle_ ) handle_.destroy();
+    }
 
     Result get() {
         std::unique_lock<std::mutex> lk{ __detail__::mtx_ };
