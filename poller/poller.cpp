@@ -96,12 +96,23 @@ void Poller::performRequest( HttpRequest&& request, CallbackFn cb ) {
     }
 }
 
-RequestAwaitable Poller::performRequestAsync( std::string url ) {
-    return RequestAwaitable( *this, std::move( url ) );
+StringRequestAwaitable<Task<void>> Poller::requestAsyncVoid( std::string url ) {
+    return StringRequestAwaitable<Task<void>>( *this, std::move( url ) );
 }
 
-HttpRequestAwaitable Poller::performRequestAsync( HttpRequest&& request ) {
-    return HttpRequestAwaitable( *this, std::move( request ) );
+StringRequestAwaitable<Task<Result>> Poller::requestAsyncPromise(
+    std::string url ) {
+    return StringRequestAwaitable<Task<Result>>( *this, std::move( url ) );
+}
+
+HttpRequestAwaitable<Task<void>> Poller::requestAsyncVoid(
+    HttpRequest&& request ) {
+    return HttpRequestAwaitable<Task<void>>( *this, std::move( request ) );
+}
+
+HttpRequestAwaitable<Task<Result>> Poller::requestAsyncPromise(
+    HttpRequest&& request ) {
+    return HttpRequestAwaitable<Task<Result>>( *this, std::move( request ) );
 }
 
 void Poller::stop() {

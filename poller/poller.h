@@ -23,8 +23,13 @@ struct Request {
     std::string buffer;
 };
 
-struct RequestAwaitable;
+template <typename T>
+struct Task;
 
+template <typename T>
+struct StringRequestAwaitable;
+
+template <typename T>
 struct HttpRequestAwaitable;
 
 class Poller {
@@ -39,14 +44,18 @@ public:
 
     void stop();
 
-    void performRequest( const std::string& url, CallbackFn cb );
     void performRequest( const HttpRequest& request, CallbackFn cb ) = delete;
+    HttpRequestAwaitable<Task<void>> requestAsync(
+        const HttpRequest& request ) = delete;
+
+    void performRequest( const std::string& url, CallbackFn cb );
     void performRequest( HttpRequest&& request, CallbackFn cb );
 
-    RequestAwaitable performRequestAsync( std::string url );
-    HttpRequestAwaitable performRequestAsync( const HttpRequest& request ) =
-        delete;
-    HttpRequestAwaitable performRequestAsync( HttpRequest&& request );
+    StringRequestAwaitable<Task<void>> requestAsyncVoid( std::string url );
+    StringRequestAwaitable<Task<Result>> requestAsyncPromise( std::string url );
+    HttpRequestAwaitable<Task<void>> requestAsyncVoid( HttpRequest&& request );
+    HttpRequestAwaitable<Task<Result>> requestAsyncPromise(
+        HttpRequest&& request );
 
 private:
     void run();

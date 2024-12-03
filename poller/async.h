@@ -41,8 +41,10 @@ private:
     handle_type handle_;
 };
 
+namespace __detail__ {
 static std::condition_variable cv_;
 static std::mutex mtx_;
+}  // namespace __detail__
 
 template <>
 struct Task<Result> {
@@ -60,7 +62,7 @@ struct Task<Result> {
         void return_value( Result value ) { payload_ = value; }
 
         std::suspend_always final_suspend() noexcept {
-            cv_.notify_all();
+            __detail__::cv_.notify_all();
             return {};
         }
 
@@ -75,8 +77,8 @@ struct Task<Result> {
     // }
 
     Result get() {
-        std::unique_lock<std::mutex> lk{ mtx_ };
-        cv_.wait( lk, [this]() { return handle_.done(); } );
+        std::unique_lock<std::mutex> lk{ __detail__::mtx_ };
+        __detail__::cv_.wait( lk, [this]() { return handle_.done(); } );
 
         return handle_.promise().payload_;
     }
@@ -86,36 +88,43 @@ private:
 };
 
 struct RequestAwaitable {
-    RequestAwaitable( Poller& client_, std::string url_ )
-        : client( client_ )
-        , url( std::move( url_ ) ){};
+    RequestAwaitable( Poller& client )
+        : client_( client ){};
 
+    // HTTP request always NOT ready immedieateley!
     bool await_ready() const noexcept { return false; }
 
+    Result await_resume() const noexcept { return std::move( result_ ); }
+
+    Poller& client_;
+    Result result_;
+};
+
+template <typename T>
+struct StringRequestAwaitable final : RequestAwaitable {
+    StringRequestAwaitable( Poller& client, std::string url )
+        : RequestAwaitable( client )
+        , url( std::move( url ) ){};
+
     void await_suspend(
-        std::coroutine_handle<Task<void>::promise_type> handle ) noexcept {
-        client.performRequest( std::move( url ), [handle, this]( Result res ) {
-            result = std::move( res );
+        std::coroutine_handle<typename T::promise_type> handle ) noexcept {
+        client_.performRequest( std::move( url ), [handle, this]( Result res ) {
+            result_ = std::move( res );
             handle.resume();
         } );
     }
 
-    Result await_resume() const noexcept { return std::move( result ); }
-
-    Poller& client;
     std::string url;
-    Result result;
 };
 
-struct HttpRequestAwaitable {
+template <typename T>
+struct HttpRequestAwaitable final : RequestAwaitable {
     HttpRequestAwaitable( Poller& client, HttpRequest request )
-        : client_( client )
+        : RequestAwaitable( client )
         , request_( std::move( request ) ){};
 
-    bool await_ready() const noexcept { return false; }
-
     void await_suspend(
-        std::coroutine_handle<Task<Result>::promise_type> handle ) noexcept {
+        std::coroutine_handle<typename T::promise_type> handle ) noexcept {
         client_.performRequest( std::move( request_ ),
                                 [handle, this]( Result res ) {
                                     result_ = std::move( res );
@@ -123,11 +132,7 @@ struct HttpRequestAwaitable {
                                 } );
     }
 
-    Result await_resume() const noexcept { return std::move( result_ ); }
-
-    Poller& client_;
     HttpRequest request_;
-    Result result_;
 };
 
 }  // namespace poller
