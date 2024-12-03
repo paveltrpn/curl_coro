@@ -122,6 +122,7 @@ struct Task<Result> {
     }
 
     Result get() {
+        // block caller thread until coroutine reach final_suspend()
         std::unique_lock<std::mutex> lk{ __detail__::mtx_ };
         __detail__::cv_.wait( lk, [this]() { return handle_.done(); } );
 
@@ -132,44 +133,17 @@ private:
     handle_type handle_;
 };
 
-struct RequestAwaitable {
-    RequestAwaitable( Poller& client )
-        : client_( client ){};
+template <typename T, typename U>
+struct RequestAwaitable final {
+    RequestAwaitable( Poller& client, T request )
+        : client_( client )
+        , request_( std::move( request ) ){};
 
     // HTTP request always NOT ready immedieateley!
     bool await_ready() const noexcept { return false; }
 
-    Result await_resume() const noexcept { return std::move( result_ ); }
-
-    Poller& client_;
-    Result result_;
-};
-
-template <typename T>
-struct StringRequestAwaitable final : RequestAwaitable {
-    StringRequestAwaitable( Poller& client, std::string url )
-        : RequestAwaitable( client )
-        , url( std::move( url ) ){};
-
     void await_suspend(
-        std::coroutine_handle<typename T::promise_type> handle ) noexcept {
-        client_.performRequest( std::move( url ), [handle, this]( Result res ) {
-            result_ = std::move( res );
-            handle.resume();
-        } );
-    }
-
-    std::string url;
-};
-
-template <typename T>
-struct HttpRequestAwaitable final : RequestAwaitable {
-    HttpRequestAwaitable( Poller& client, HttpRequest request )
-        : RequestAwaitable( client )
-        , request_( std::move( request ) ){};
-
-    void await_suspend(
-        std::coroutine_handle<typename T::promise_type> handle ) noexcept {
+        std::coroutine_handle<typename U::promise_type> handle ) noexcept {
         client_.performRequest( std::move( request_ ),
                                 [handle, this]( Result res ) {
                                     result_ = std::move( res );
@@ -177,7 +151,11 @@ struct HttpRequestAwaitable final : RequestAwaitable {
                                 } );
     }
 
-    HttpRequest request_;
+    Result await_resume() const noexcept { return std::move( result_ ); }
+
+    Poller& client_;
+    T request_;
+    Result result_;
 };
 
 }  // namespace poller
